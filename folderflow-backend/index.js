@@ -1,24 +1,107 @@
-require('dotenv').config();
+const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const compression = require('compression');
+const { rateLimit } = require('express-rate-limit');
+const RedisStore = require('rate-limit-redis');
+const Redis = require('ioredis');
+const cluster = require('cluster');
+const numCPUs = require('os').cpus().length;
+const config = require('./config');
 const Sentry = require('@sentry/node');
+const { ProfilingIntegration } = require("@sentry/profiling-node");
+
+// Initialize Redis
+const redis = new Redis(config.redis.url);
+
+// Configure Sentry
 Sentry.init({
-  dsn: process.env.SENTRY_DSN || '',
-  tracesSampleRate: 1.0,
+  dsn: config.monitoring.sentryDsn,
+  environment: config.nodeEnv,
+  integrations: [
+    new ProfilingIntegration(),
+  ],
+  tracesSampleRate: config.nodeEnv === 'production' ? 0.1 : 1.0,
+  profilesSampleRate: 0.1,
 });
 
-const express = require('express');
-const cors = require('cors');
-const app = express();
+// Cluster setup for production
+if (cluster.isMaster && config.nodeEnv === 'production') {
+  console.log(`Master ${process.pid} is running`);
 
-app.use(Sentry.Handlers.requestHandler());
-app.use(Sentry.Handlers.errorHandler());
-// Configure CORS for testing
-app.use(cors({
-  origin: '*', // Allow all origins for testing
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json({ limit: '2048mb' })); // Set payload limit to 2GB
-app.use(express.urlencoded({ extended: true, limit: '2048mb' })); // Also increase URL-encoded limit
+  // Fork workers
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`Worker ${worker.process.pid} died`);
+    // Replace the dead worker
+    cluster.fork();
+  });
+} else {
+  const app = express();
+
+  // Trust proxy if behind reverse proxy
+  if (config.security.trustProxy) {
+    app.set('trust proxy', 1);
+  }
+
+  // Security middleware
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        connectSrc: ["'self'", ...config.security.corsOrigins],
+        imgSrc: ["'self'", 'data:', config.cdn.url].filter(Boolean),
+        upgradeInsecureRequests: config.nodeEnv === 'production' ? [] : null,
+      },
+    },
+    crossOriginEmbedderPolicy: { policy: "credentialless" },
+    crossOriginOpenerPolicy: { policy: "same-origin" },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }));
+
+  // Compression
+  app.use(compression({
+    filter: (req, res) => {
+      if (req.headers['x-no-compression']) return false;
+      return compression.filter(req, res);
+    },
+    threshold: 1024,
+  }));
+
+  // CORS
+  app.use(cors({
+    origin: config.security.corsOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    maxAge: 86400, // 24 hours
+  }));
+
+  // Body parsing
+  app.use(express.json({ limit: config.upload.maxFileSize }));
+  app.use(express.urlencoded({ extended: true, limit: config.upload.maxFileSize }));
+
+  // Rate limiting with Redis store
+  const limiter = rateLimit({
+    store: new RedisStore({
+      sendCommand: (...args) => redis.call(...args),
+    }),
+    windowMs: config.rateLimit.windowMs,
+    max: config.rateLimit.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => config.nodeEnv === 'development',
+  });
+
+  // Apply rate limiting to all routes
+  app.use(limiter);
+
+  // Sentry request handler
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
 
 // Add test endpoints
 app.get('/', (req, res) => {

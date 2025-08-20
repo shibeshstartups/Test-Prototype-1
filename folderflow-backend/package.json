@@ -1,11 +1,18 @@
 {
   "name": "folderflow-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Production-ready backend for FolderFlow",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
-    "start": "node index.js"
+    "start": "NODE_ENV=production pm2 start ecosystem.config.json --env production",
+    "dev": "NODE_ENV=development nodemon index.js",
+    "test": "jest --coverage",
+    "lint": "eslint .",
+    "migrate": "node migrate.js",
+    "migrate:undo": "node migrate-undo.js",
+    "security-check": "npm audit && snyk test",
+    "docker:build": "docker build -t folderflow-backend .",
+    "docker:run": "docker run -p 4000:4000 folderflow-backend"
   },
   "keywords": [],
   "author": "",

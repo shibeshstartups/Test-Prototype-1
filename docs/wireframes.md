@@ -1,4 +1,5 @@
-# FolderFlow Wireframes
+cp .env.example .env
+# Edit .env with your production values# FolderFlow Wireframes
 
 ## 1. Dashboard
 - Sidebar: [Transfers, Files, Plans, Settings]
