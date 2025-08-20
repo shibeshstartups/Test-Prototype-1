@@ -1,4 +1,16 @@
+import { Metadata } from "next";
 import FolderUpload from "../components/FolderUpload";
+import DashboardNav from "../components/DashboardNav";
+import ShareLinkModal from "../components/ShareLinkModal";
+import DownloadPage from "../components/DownloadPage";
+import AuthForm from "../components/AuthForm";
+import PlanPayment from "../components/PlanPayment";
+import UserProfile from "../components/UserProfile";
+
+export const metadata: Metadata = {
+  title: "FolderFlow - Large File Sharing Made Simple",
+  description: "Send large folders with preserved structure. No zipping required.",
+};
 import DashboardNav from "../components/DashboardNav";
 import ShareLinkModal from "../components/ShareLinkModal";
 import DownloadPage from "../components/DownloadPage";
