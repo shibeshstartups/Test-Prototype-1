@@ -146,4 +146,4 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // PM2 logs are automatically captured when running with pm2
-// To view logs: pm2 logs folderflow-backend
+// To view logs: pm2 logs folderflow-backend 
