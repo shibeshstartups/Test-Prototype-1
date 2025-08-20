@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS share_links (
+  id SERIAL PRIMARY KEY,
+  link_id VARCHAR(32) UNIQUE NOT NULL,
+  folder_id INTEGER REFERENCES folders(id),
+  hash VARCHAR(64),
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
