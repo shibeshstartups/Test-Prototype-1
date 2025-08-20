@@ -1,0 +1,19 @@
+{
+  "name": "folderflow",
+  "description": "Large file sharing application with folder structure preservation",
+  "version": "1.0.0",
+  "main": "folderflow-frontend/src/app/page.tsx",
+  "dependencies": {
+    "next": "15.5.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "tailwindcss": "^4.0.0"
+  },
+  "bolt": {
+    "entryFile": "folderflow-frontend/src/app/page.tsx",
+    "framework": "next",
+    "styles": "folderflow-frontend/src/app/globals.css",
+    "components": "folderflow-frontend/src/components",
+    "assets": "folderflow-frontend/public"
+  }
+}
